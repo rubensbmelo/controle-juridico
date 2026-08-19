@@ -929,8 +929,20 @@ function editCase(id){
 
 async function deleteCase(id){
   if(!confirm('Remover este processo do controle?')) return;
+  if(supabaseClient && currentUser){
+    const {error} = await supabaseClient.from('processes')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', currentUser.id);
+    if(error){
+      alert('Não foi possível remover o processo do Supabase. Tente novamente quando estiver online.');
+      console.error('Erro ao remover processo:', error);
+      return;
+    }
+  }
   cases = cases.filter(c=>c.id!==id);
   delete events[id];
+  deadlines = deadlines.filter(d=>d.processId!==id);
   await persist();
   render();
 }
@@ -975,6 +987,7 @@ async function removeDeadline(id){
 }
 
 async function removeEvent(cid, evId){
+  if(!confirm('Remover esta movimentação?')) return;
   events[cid] = (events[cid]||[]).filter(e=>e.evId!==evId);
   await persist();
   render();
