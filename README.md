@@ -19,6 +19,8 @@ O painel inclui busca, filtros, movimentacoes, prazos e alertas, backup JSON e l
 
 Processos, eventos e prazos sao sincronizados com regras RLS por usuario.
 
+A exclusao de processos exige conexao com o Supabase. Se o sistema estiver offline, a operacao e recusada para evitar que um processo apagado localmente reapareca depois.
+
 ## Configuracao inicial
 
 1. Crie um projeto no Supabase.
