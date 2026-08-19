@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Controle Jurídico &amp; Financeiro</title>
+<link rel="icon" href="data:,">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<style>
+  :root{
+    --bg:#F4F1EA;
+    --panel:#FFFDF8;
+    --panel-2:#EEE8DD;
+    --line:rgba(119,84,34,0.20);
+    --ink:#27231D;
+    --ink-dim:#6F6A61;
+    --gold:#956316;
+    --gold-soft:rgba(149,99,22,0.12);
+    --ativo:#B33B34;
+    --andamento:#A45D18;
+    --suspenso:#9A7410;
+    --arquivado:#34794D;
+    --extinto:#626B76;
+    --serif:Georgia,'Times New Roman',serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:var(--sans);
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto;}
+  .masthead{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--gold);padding-bottom:18px;margin-bottom:26px;flex-wrap:wrap;gap:16px;
+  }
+  .masthead .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--gold);text-transform:uppercase;}
+  .masthead h1{font-family:var(--serif);font-size:30px;margin:6px 0 0;font-weight:400;letter-spacing:.01em;}
+  .masthead .sub{color:var(--ink-dim);font-size:13px;margin-top:4px;}
+  .hero-figure{text-align:right;}
+  .hero-figure .label{font-family:var(--mono);font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.1em;}
+  .hero-figure .num{font-family:var(--serif);font-size:38px;color:var(--gold);line-height:1.1;}
+
+  .cards{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;margin-bottom:28px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;box-shadow:0 2px 8px rgba(72,52,24,.04);}
+  .card .k{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em;}
+  .card .v{font-family:var(--serif);font-size:22px;margin-top:4px;color:var(--ink);overflow-wrap:anywhere;}
+  .card .v.small{font-size:16px;font-family:var(--sans);}
+
+  h2.section{
+    font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--gold);border-bottom:1px solid var(--line);padding-bottom:8px;margin:34px 0 14px;
+  }
+
+  .ledger{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .row{
+    display:grid;grid-template-columns:30px 1fr 170px 118px 100px 80px 90px;
+    align-items:center;border-bottom:1px solid var(--line);position:relative;min-width:0;
+  }
+  .row:last-child{border-bottom:none;}
+  .row.head{background:var(--panel-2);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--ink-dim);letter-spacing:.06em;}
+  .row.head .cell{padding:10px 10px;}
+  .row .idx{font-family:var(--mono);color:var(--ink-dim);font-size:13px;text-align:center;position:relative;}
+  .tab{position:absolute;left:0;top:0;bottom:0;width:4px;}
+  .cell{padding:13px 10px;font-size:13.5px;min-width:0;}
+  .name{font-weight:600;min-width:0;overflow-wrap:anywhere;}
+  .name .proc-num{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-dim);font-weight:400;}
+  .val{font-family:var(--mono);text-align:right;padding-right:16px;white-space:nowrap;font-size:12px;}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-family:var(--mono);
+    padding:3px 8px;border-radius:20px;background:var(--panel-2);
+  }
+  .dot{width:8px;height:8px;border-radius:50%;}
+  .prio{font-size:11px;color:var(--ink-dim);}
+  .actions{display:flex;gap:6px;justify-content:flex-end;padding-right:8px;}
+  .actions button{
+    background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:4px;
+    font-size:11px;padding:4px 7px;cursor:pointer;font-family:var(--sans);
+  }
+  .actions button:hover{border-color:var(--gold);color:var(--gold);}
+
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .chart-box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .chart-box .title{font-family:var(--mono);font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+
+  .timeline{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 18px;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .tl-item{display:grid;grid-template-columns:100px minmax(0,1fr) auto;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start;}
+  .tl-item:last-child{border-bottom:none;}
+  .tl-date{font-family:var(--mono);color:var(--gold);font-size:12px;}
+  .tl-desc .who{font-size:12.5px;color:var(--ink-dim);}
+  .tl-desc .what{font-size:13.5px;overflow-wrap:anywhere;}
+  .tl-item button{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:11px;}
+  .tl-empty{color:var(--ink-dim);font-size:13px;padding:16px 0;}
+  .deadline-list{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 18px;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .deadline-item{display:grid;grid-template-columns:110px minmax(0,1fr) auto auto auto;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center;}
+  .deadline-item:last-child{border-bottom:none;}
+  .deadline-date{font-family:var(--mono);color:var(--gold);font-size:12px;}
+  .deadline-desc .who{font-size:12.5px;color:var(--ink-dim);}
+  .deadline-desc{min-width:0;}
+  .deadline-desc .what{font-size:13.5px;overflow-wrap:anywhere;}
+  .deadline-kind{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;}
+  .deadline-state{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .deadline-overdue{background:rgba(179,59,52,.14);color:#A52F2A;}
+  .deadline-soon{background:rgba(154,116,16,.16);color:#86620B;}
+  .deadline-ok{background:rgba(52,121,77,.14);color:#34794D;}
+  .deadline-done{background:rgba(98,107,118,.14);color:var(--ink-dim);}
+  .deadline-item button{background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:4px;cursor:pointer;font-size:11px;padding:4px 7px;}
+  .deadline-item button:hover{border-color:var(--gold);color:var(--gold);}
+  .deadline-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+
+  .panel-form{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .form-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .form-grid.two{grid-template-columns:1fr 1fr 1fr auto;}
+  .deadline-form{grid-template-columns:1.2fr 140px 1.1fr 2fr auto !important;}
+  input,select,textarea{
+    background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;
+    padding:8px 10px;font-size:13px;font-family:var(--sans);width:100%;min-width:0;
+  }
+  textarea{resize:vertical;min-height:36px;}
+  .btn{
+    background:var(--gold);color:#1A1305;border:none;border-radius:4px;padding:9px 16px;
+    font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans);letter-spacing:.02em;
+  }
+  .btn.ghost{background:none;border:1px solid var(--gold);color:var(--gold);}
+  .btn:hover{opacity:.88;}
+
+  .fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
+  .ficha{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;box-shadow:0 2px 10px rgba(72,52,24,.04);}
+  .ficha h3{font-family:var(--serif);font-size:17px;margin:0 0 8px;font-weight:400;}
+  .ficha .row-line{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--line);}
+  .ficha .row-line span:first-child{color:var(--ink-dim);}
+  .ficha .row-line span:last-child{min-width:0;text-align:right;overflow-wrap:anywhere;}
+  .ficha .obs{margin-top:10px;font-size:12.5px;color:var(--ink-dim);overflow-wrap:anywhere;}
+  .ficha-actions{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);}
+  .ficha-actions button{background:none;border:1px solid var(--line);color:var(--gold);border-radius:4px;font-size:11.5px;padding:6px 10px;cursor:pointer;font-family:var(--sans);}
+  .ficha-actions button:hover{border-color:var(--gold);background:var(--gold-soft);}
+
+  .risk-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .risk-pill{font-family:var(--mono);font-size:11.5px;padding:6px 12px;border-radius:20px;background:var(--gold-soft);color:var(--gold);}
+
+  .sorters{display:flex;gap:8px;margin-bottom:10px;}
+  .sorters button{
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);border-radius:20px;
+    font-size:11.5px;padding:6px 14px;cursor:pointer;font-family:var(--mono);letter-spacing:.03em;
+  }
+  .sorters button.active{background:var(--gold-soft);color:var(--gold);border-color:var(--gold);}
+  .filters{display:grid;grid-template-columns:2fr repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .filters input,.filters select{min-width:0;}
+  .risk-badge{font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+  .risk-critico{background:rgba(196,69,61,.25);color:#FF8A82;}
+  .risk-alto{background:rgba(196,69,61,.16);color:#E58079;}
+  .risk-medio{background:rgba(212,160,23,.18);color:#E9C25C;}
+  .risk-baixo{background:rgba(63,143,95,.18);color:#7FCB99;}
+  .row.vinculado{opacity:.55;}
+  .link-tag{display:inline-block;max-width:100%;font-family:var(--mono);font-size:10px;color:var(--gold);background:var(--gold-soft);padding:2px 6px;border-radius:4px;margin-left:6px;white-space:normal;overflow-wrap:anywhere;}
+  .foot-note{color:var(--ink-dim);font-size:11.5px;text-align:center;margin-top:40px;font-family:var(--mono);}
+  #auth-screen{max-width:420px;margin:12vh auto 0;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;}
+  #auth-screen h2{font-family:var(--serif);font-weight:400;margin:0 0 8px;}
+  #auth-screen p{color:var(--ink-dim);font-size:13px;line-height:1.5;}
+  #auth-screen input{margin-top:8px;}
+  #auth-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+  #auth-message{color:var(--gold);font-size:12px;margin-top:12px;}
+  .hero-actions{display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;}
+  .hero-actions button{background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:4px;padding:5px 9px;cursor:pointer;font-size:11px;}
+  .hero-actions button:hover{border-color:var(--gold);color:var(--gold);}
+  @media(max-width:760px){
+    body{padding:20px 12px 48px;}
+    .masthead{align-items:flex-start;}
+    .hero-figure{text-align:left;}
+    .row{grid-template-columns:24px minmax(0,1fr) auto auto;}
+    .row.head{grid-template-columns:24px minmax(0,1fr) auto auto;}
+    .row.head .cell:nth-child(5),
+    .row.head .cell:nth-child(6),
+    .row.head .cell:nth-child(7),
+    .row:not(.head) .cell:nth-child(6),
+    .row:not(.head) .cell:nth-child(7){display:none;}
+    .row .cell{padding:11px 7px;}
+    .row .name{min-width:0;overflow-wrap:anywhere;}
+    .row .val{padding-right:5px;white-space:nowrap;font-size:12px;}
+    .actions{gap:3px;padding-right:3px;}
+    .actions button{padding:4px 5px;font-size:10px;}
+    .charts{grid-template-columns:1fr;}
+    .form-grid,.form-grid.two{grid-template-columns:1fr;}
+    .deadline-form{grid-template-columns:1fr !important;}
+    .filters{grid-template-columns:1fr;}
+    .form-grid[style]{grid-template-columns:1fr !important;}
+    .form-grid label{padding:4px 0;}
+    .fichas{grid-template-columns:minmax(0,1fr);}
+    .deadline-item{grid-template-columns:1fr auto auto;gap:6px 8px;}
+    .deadline-date,.deadline-desc,.deadline-kind{grid-column:1 / -1;}
+    .deadline-state{grid-column:1;grid-row:auto;}
+    .deadline-actions{grid-column:2 / -1;grid-row:auto;}
+    .cards{grid-template-columns:repeat(2,minmax(0,1fr));}
+  }
+  @media(min-width:761px) and (max-width:1000px){
+    .cards{grid-template-columns:repeat(4,minmax(0,1fr));}
+  }
+</style>
+</head>
+<body>
+<div id="auth-screen">
+  <h2>Controle Jurídico</h2>
+  <p>Entre com seu login e senha para acessar os processos sincronizados.</p>
+  <input id="auth-login" autocomplete="username" placeholder="Login">
+  <input id="auth-password" type="password" autocomplete="current-password" placeholder="Senha">
+  <div id="auth-actions">
+    <button class="btn" onclick="signIn()">Entrar</button>
+  </div>
+  <div id="auth-message"></div>
+</div>
+<div class="wrap" id="app" hidden>
+
+  <div class="masthead">
+    <div>
+      <div class="eyebrow">Controle Jurídico &amp; Financeiro — Ficha Permanente</div>
+      <h1>Portfólio de Processos</h1>
+      <div class="sub" id="subhead">carregando…</div>
+    </div>
+    <div class="hero-figure">
+      <div class="hero-actions">
+        <button onclick="exportBackup()">backup</button>
+        <button onclick="signOut()">sair</button>
+      </div>
+      <div class="label">Valor total exposto (ativo/andamento/suspenso)</div>
+      <div class="num" id="heroTotal">—</div>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <h2 class="section">Ranking Consolidado</h2>
+  <div class="sorters" id="sorters">
+    <button data-mode="valor" onclick="setSort('valor')">Por valor</button>
+    <button data-mode="risco" onclick="setSort('risco')">Por risco</button>
+    <button data-mode="fase" onclick="setSort('fase')">Por fase/status</button>
+  </div>
+  <div class="filters" aria-label="Filtros de processos">
+    <input id="filter-search" placeholder="Buscar nome, processo, empresa ou tribunal" oninput="render()">
+    <select id="filter-status" onchange="render()">
+      <option value="">Todos os status</option>
+      <option value="ativo">Ativo</option>
+      <option value="andamento">Em andamento</option>
+      <option value="suspenso">Suspenso</option>
+      <option value="arquivado">Arquivado</option>
+      <option value="extinto">Extinto</option>
+    </select>
+    <select id="filter-risco" onchange="render()">
+      <option value="">Todos os riscos</option>
+      <option value="critico">Crítico</option>
+      <option value="alto">Alto</option>
+      <option value="medio">Médio</option>
+      <option value="baixo">Baixo</option>
+    </select>
+    <select id="filter-prio" onchange="render()">
+      <option value="">Todas as prioridades</option>
+      <option value="Alta">Alta</option>
+      <option value="Média">Média</option>
+      <option value="Baixa">Baixa</option>
+    </select>
+    <input id="filter-fase" placeholder="Filtrar por fase" oninput="render()">
+  </div>
+  <div class="ledger" id="ledger"></div>
+
+  <h2 class="section">Créditos a Receber (Sergio como autor)</h2>
+  <div class="ledger" id="creditos"></div>
+
+  <h2 class="section">Adicionar / Atualizar Processo</h2>
+  <div class="panel-form">
+    <div class="form-grid">
+      <input id="f-nome" placeholder="Nome / parte">
+      <input id="f-proc" placeholder="Nº do processo (opcional)">
+      <input id="f-valor" placeholder="Valor (ex: 25000.00)" inputmode="decimal">
+      <select id="f-status">
+        <option value="ativo">🔴 Ativo</option>
+        <option value="andamento">🟠 Em andamento</option>
+        <option value="suspenso">🟡 Suspenso</option>
+        <option value="arquivado">🟢 Arquivado</option>
+        <option value="extinto">⚫ Extinto</option>
+      </select>
+    </div>
+    <div class="form-grid">
+      <input id="f-fase" placeholder="Fase processual (ex: Contestação)">
+      <input id="f-vara" placeholder="Vara / Tribunal">
+      <select id="f-prio">
+        <option value="">Prioridade —</option>
+        <option value="Alta">Alta</option>
+        <option value="Média">Média</option>
+        <option value="Baixa">Baixa</option>
+      </select>
+      <input id="f-id" type="hidden">
+    </div>
+    <div class="form-grid">
+      <input id="f-empresa" placeholder="Empresa executada">
+      <select id="f-risco">
+        <option value="">Risco —</option>
+        <option value="baixo">Baixo</option>
+        <option value="medio">Médio</option>
+        <option value="alto">Alto</option>
+        <option value="critico">Crítico</option>
+      </select>
+      <select id="f-bloqueio">
+        <option value="">Prob. bloqueio —</option>
+        <option value="baixa">Baixa</option>
+        <option value="media">Média</option>
+        <option value="alta">Alta</option>
+      </select>
+      <select id="f-vinculo">
+        <option value="">Sem vínculo (processo independente)</option>
+      </select>
+    </div>
+    <div class="form-grid" style="grid-template-columns:auto auto 1fr;align-items:center;">
+      <label style="font-size:12.5px;display:flex;gap:6px;align-items:center;"><input type="checkbox" id="f-penhora" style="width:auto;">Há penhora</label>
+      <label style="font-size:12.5px;display:flex;gap:6px;align-items:center;"><input type="checkbox" id="f-cp" style="width:auto;">É carta precatória / execução vinculada</label>
+      <select id="f-tipo" style="max-width:220px;">
+        <option value="passivo">Passivo (Sergio é réu)</option>
+        <option value="credito">Crédito a receber (Sergio é autor)</option>
+      </select>
+    </div>
+    <textarea id="f-obs" placeholder="Observações estratégicas (opcional)"></textarea>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn" onclick="saveCase()">Salvar processo</button>
+      <button class="btn ghost" onclick="resetForm()">Limpar</button>
+    </div>
+  </div>
+
+  <h2 class="section">Indicadores</h2>
+  <div class="charts">
+    <div class="chart-box">
+      <div class="title">Distribuição por status</div>
+      <canvas id="pieChart" height="220"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="title">Valor por processo</div>
+      <canvas id="barChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <h2 class="section">Linha do Tempo — Registrar Movimentação</h2>
+  <div class="panel-form" style="margin-bottom:14px;">
+    <div class="form-grid two">
+      <select id="tl-case"></select>
+      <input id="tl-date" type="date" onclick="if(this.showPicker) this.showPicker()">
+      <input id="tl-what" placeholder="Ex: Sentença, Audiência, Intimação...">
+      <button class="btn" onclick="addEvent()">Registrar</button>
+    </div>
+  </div>
+  <div class="timeline" id="timeline"></div>
+
+  <h2 class="section">Prazos e Alertas</h2>
+  <div class="panel-form" style="margin-bottom:14px;">
+    <div class="form-grid two deadline-form">
+      <select id="dl-case"></select>
+      <input id="dl-date" type="date" onclick="if(this.showPicker) this.showPicker()">
+      <select id="dl-type">
+        <option value="limite">Data limite</option>
+        <option value="audiencia">Audiência</option>
+        <option value="contestacao">Prazo de contestação</option>
+        <option value="outro">Outro prazo</option>
+      </select>
+      <input id="dl-desc" placeholder="Descrição do prazo">
+      <button class="btn" onclick="addDeadline()">Adicionar prazo</button>
+    </div>
+  </div>
+  <div class="deadline-list" id="deadlines"></div>
+
+  <h2 class="section">Fichas por Processo</h2>
+  <div class="fichas" id="fichas"></div>
+
+  <div class="foot-note">Dados salvos automaticamente neste dispositivo — envie novos documentos/PDFs para que eu atualize valores, status e histórico.</div>
+</div>
+
+<script>
+const STATUS_META = {
+  ativo:     {label:'Ativo',        color:'var(--ativo)',     order:0},
+  andamento: {label:'Em andamento', color:'var(--andamento)', order:1},
+  suspenso:  {label:'Suspenso',     color:'var(--suspenso)',  order:2},
+  arquivado: {label:'Arquivado',    color:'var(--arquivado)', order:3},
+  extinto:   {label:'Extinto',      color:'var(--extinto)',   order:4},
+};
+
+const RISK_DEFAULT = {risco:'', probBloqueio:'', penhora:false, cartaPrecatoria:false, vinculoId:'', empresaExecutada:'', tipo:'passivo'};
+
+const SEED = [];
+
+let cases = [];
+let events = {};
+let deadlines = [];
+let pieChart, barChart;
+let currentUser = null;
+const supabaseClient = window.SUPABASE_CONFIG && window.supabase
+  ? window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey)
+  : null;
+
+function fmtBRL(n){
+  return 'R$ ' + Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function parseBRL(value){
+  const text = String(value||'').trim().replace(/[^\d,.-]/g,'');
+  if(!text) return 0;
+  if(text.includes(',')) return Number(text.replace(/\./g,'').replace(',','.')) || 0;
+  const parts = text.split('.');
+  if(parts.length===2 && parts[1].length===3) return Number(parts[0]+parts[1]) || 0;
+  return Number(text) || 0;
+}
+
+function migrate(){
+  let changed = false;
+  // ensure every existing case has the new fields (non-destructive)
+  cases.forEach(c=>{
+    Object.keys(RISK_DEFAULT).forEach(k=>{
+      if(c[k]===undefined){ c[k]=RISK_DEFAULT[k]; changed=true; }
+    });
+  });
+  // backfill process number / fase on the original Euclides record if still blank
+  const euc = cases.find(c=>c.id==='euclides');
+  if(euc && !euc.proc){ euc.proc = '0001226-44.2024.5.19.0002'; euc.vara = euc.vara||'TRT19'; euc.fase = euc.fase||'Execução'; changed=true; }
+  return changed;
+}
+
+async function loadData(){
+  let firstRun = false;
+  if(supabaseClient && currentUser){
+    try{
+      const [{data: remoteCases, error: casesError}, {data: remoteEvents, error: eventsError}, {data: remoteDeadlines, error: deadlinesError}] = await Promise.all([
+        supabaseClient.from('processes').select('*').order('created_at'),
+        supabaseClient.from('events').select('*').order('event_date'),
+        supabaseClient.from('deadlines').select('*').order('due_date')
+      ]);
+      if(casesError) throw casesError;
+      if(eventsError) throw eventsError;
+      if(deadlinesError) throw deadlinesError;
+      if(remoteCases.length){
+        cases = remoteCases.map(fromDbCase);
+        events = {};
+        remoteEvents.forEach(ev=>{
+          if(!events[ev.process_id]) events[ev.process_id] = [];
+          events[ev.process_id].push({evId:String(ev.id), date:ev.event_date, what:ev.description});
+        });
+        deadlines = remoteDeadlines.map(fromDbDeadline);
+        render();
+        return;
+      }
+    }catch(e){
+      console.warn('Supabase indisponível; usando a cópia local:', e);
+    }
+  }
+  try{
+    const raw = localStorage.getItem('portfolio');
+    if(!raw) throw new Error('Nenhum dado local encontrado');
+    const data = JSON.parse(raw);
+    cases = data.cases || [];
+    events = data.events || {};
+    deadlines = data.deadlines || [];
+  }catch(e){
+    cases = JSON.parse(JSON.stringify(SEED));
+    events = {};
+    deadlines = [];
+    firstRun = true;
+  }
+  const dirty = migrate();
+  if(dirty || firstRun) await persist();
+  render();
+}
+
+async function persist(){
+  try{
+    if(supabaseClient && currentUser){
+      const rows = cases.map(toDbCase);
+      const {error: casesError} = await supabaseClient.from('processes').upsert(rows, {onConflict:'id'});
+      if(casesError) throw casesError;
+      await syncEvents();
+      await syncDeadlines();
+    }
+  }catch(e){ console.error('Erro ao sincronizar com o Supabase:', e); }
+  try{
+    localStorage.setItem('portfolio', JSON.stringify({cases, events, deadlines}));
+  }catch(e){ console.error('Erro ao salvar cópia local:', e); }
+}
+
+function fromDbDeadline(d){
+  return {id:String(d.id), processId:d.process_id, date:d.due_date, kind:d.kind, description:d.description, completed:!!d.completed};
+}
+
+async function syncDeadlines(){
+  const {data: remote, error: remoteError} = await supabaseClient.from('deadlines').select('id').eq('user_id', currentUser.id);
+  if(remoteError) throw remoteError;
+  const existing = deadlines.filter(d=>/^\d+$/.test(String(d.id))).map(d=>({
+    id:Number(d.id), user_id:currentUser.id, process_id:d.processId, due_date:d.date,
+    kind:d.kind, description:d.description, completed:!!d.completed
+  }));
+  const pending = deadlines.filter(d=>!/^\d+$/.test(String(d.id)));
+  const localIds = new Set(existing.map(row=>row.id));
+  const removedIds = remote.map(row=>row.id).filter(id=>!localIds.has(id));
+  if(removedIds.length){
+    const {error} = await supabaseClient.from('deadlines').delete().eq('user_id', currentUser.id).in('id', removedIds);
+    if(error) throw error;
+  }
+  if(existing.length){
+    const {error} = await supabaseClient.from('deadlines').upsert(existing, {onConflict:'id'});
+    if(error) throw error;
+  }
+  if(pending.length){
+    const {data, error} = await supabaseClient.from('deadlines').insert(pending.map(d=>({
+      user_id:currentUser.id, process_id:d.processId, due_date:d.date,
+      kind:d.kind, description:d.description, completed:!!d.completed
+    }))).select('id');
+    if(error) throw error;
+    data.forEach((row, index)=>{ pending[index].id = String(row.id); });
+  }
+}
+
+async function syncEvents(){
+  const {data: remote, error: remoteError} = await supabaseClient.from('events').select('id').eq('user_id', currentUser.id);
+  if(remoteError) throw remoteError;
+
+  const existing = [];
+  const pending = [];
+  Object.entries(events).forEach(([processId, list])=>list.forEach(ev=>{
+    const row = {user_id:currentUser.id, process_id:processId, event_date:ev.date, description:ev.what};
+    if(/^\d+$/.test(String(ev.evId))) existing.push({...row, id:Number(ev.evId)});
+    else pending.push({event:ev, row});
+  }));
+
+  const localIds = new Set(existing.map(row=>row.id));
+  const removedIds = remote.map(row=>row.id).filter(id=>!localIds.has(id));
+  if(removedIds.length){
+    const {error} = await supabaseClient.from('events').delete().eq('user_id', currentUser.id).in('id', removedIds);
+    if(error) throw error;
+  }
+  if(existing.length){
+    const {error} = await supabaseClient.from('events').upsert(existing, {onConflict:'id'});
+    if(error) throw error;
+  }
+  if(pending.length){
+    const {data, error} = await supabaseClient.from('events').insert(pending.map(item=>item.row)).select('id');
+    if(error) throw error;
+    data.forEach((row, index)=>{ pending[index].event.evId = String(row.id); });
+  }
+}
+
+function toDbCase(c){
+  return {
+    id:c.id, user_id:currentUser.id, nome:c.nome, proc:c.proc||'', valor:Number(c.valor)||0,
+    status:c.status, fase:c.fase||'', vara:c.vara||'', prio:c.prio||'', obs:c.obs||'',
+    risco:c.risco||'', prob_bloqueio:c.probBloqueio||'', penhora:!!c.penhora,
+    carta_precatoria:!!c.cartaPrecatoria, vinculo_id:c.vinculoId||null,
+    empresa_executada:c.empresaExecutada||'', tipo:c.tipo||'passivo'
+  };
+}
+
+function fromDbCase(c){
+  return {id:c.id, nome:c.nome, proc:c.proc, valor:Number(c.valor)||0, status:c.status, fase:c.fase,
+    vara:c.vara, prio:c.prio, obs:c.obs, risco:c.risco, probBloqueio:c.prob_bloqueio,
+    penhora:c.penhora, cartaPrecatoria:c.carta_precatoria, vinculoId:c.vinculo_id||'',
+    empresaExecutada:c.empresa_executada, tipo:c.tipo};
+}
+
+function authMessage(text){ document.getElementById('auth-message').textContent = text; }
+
+const AUTH_LOGIN_EMAIL = 'sergiofilho@controle-juridico.local';
+
+async function signIn(){
+  if(!supabaseClient){ authMessage('Configuração do Supabase ausente.'); return; }
+  const login = document.getElementById('auth-login').value.trim().toLowerCase();
+  const password = document.getElementById('auth-password').value;
+  if(login !== 'sergiofilho'){ authMessage('Login ou senha inválidos.'); return; }
+  const {error} = await supabaseClient.auth.signInWithPassword({email:AUTH_LOGIN_EMAIL, password});
+  authMessage(error ? 'Login ou senha inválidos.' : 'Entrando...');
+}
+
+async function signOut(){ if(supabaseClient) await supabaseClient.auth.signOut(); }
+
+function exportBackup(){
+  const payload = {exportedAt:new Date().toISOString(), cases, events, deadlines};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `controle-juridico-backup-${new Date().toISOString().slice(0,10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function initAuth(){
+  if(!supabaseClient){
+    document.getElementById('auth-screen').hidden = true;
+    document.getElementById('app').hidden = false;
+    await loadData();
+    return;
+  }
+  const {data:{session}} = await supabaseClient.auth.getSession();
+  currentUser = session?.user || null;
+  if(currentUser){
+    document.getElementById('auth-screen').hidden = true;
+    document.getElementById('app').hidden = false;
+    try{ await loadData(); }catch(e){ authMessage('Erro ao carregar os dados: '+e.message); }
+  }
+  supabaseClient.auth.onAuthStateChange(async (_event, nextSession)=>{
+    currentUser = nextSession?.user || null;
+    document.getElementById('auth-screen').hidden = !!currentUser;
+    document.getElementById('app').hidden = !currentUser;
+    if(currentUser) try{ await loadData(); }catch(e){ authMessage('Erro ao carregar os dados: '+e.message); }
+  });
+}
+
+let sortMode = 'valor';
+const RISK_ORDER = {'critico':0,'alto':1,'medio':2,'baixo':3,'':4};
+function riskKey(r){ return (r||'').normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+
+function setSort(mode){
+  sortMode = mode;
+  document.querySelectorAll('#sorters button').forEach(b=> b.classList.toggle('active', b.dataset.mode===mode));
+  render();
+}
+
+function sortCases(list){
+  const arr = [...list];
+  if(sortMode==='valor') arr.sort((a,b)=>b.valor-a.valor);
+  else if(sortMode==='risco') arr.sort((a,b)=> RISK_ORDER[riskKey(a.risco)]-RISK_ORDER[riskKey(b.risco)] || b.valor-a.valor);
+  else if(sortMode==='fase') arr.sort((a,b)=> STATUS_META[a.status].order-STATUS_META[b.status].order || (a.fase||'').localeCompare(b.fase||''));
+  return arr;
+}
+
+function filterCases(list){
+  const text = (document.getElementById('filter-search')?.value||'').trim().toLocaleLowerCase('pt-BR');
+  const status = document.getElementById('filter-status')?.value||'';
+  const risco = document.getElementById('filter-risco')?.value||'';
+  const prio = document.getElementById('filter-prio')?.value||'';
+  const fase = (document.getElementById('filter-fase')?.value||'').trim().toLocaleLowerCase('pt-BR');
+  return list.filter(c=>{
+    const searchable = [c.nome,c.proc,c.empresaExecutada,c.vara].join(' ').toLocaleLowerCase('pt-BR');
+    return (!text || searchable.includes(text)) &&
+      (!status || c.status===status) &&
+      (!risco || c.risco===risco) &&
+      (!prio || c.prio===prio) &&
+      (!fase || (c.fase||'').toLocaleLowerCase('pt-BR').includes(fase));
+  });
+}
+
+function render(){
+  document.getElementById('subhead').textContent =
+    cases.length + ' processos cadastrados · atualizado ' + new Date().toLocaleDateString('pt-BR');
+  document.querySelectorAll('#sorters button').forEach(b=> b.classList.toggle('active', b.dataset.mode===sortMode));
+
+  const passivoCases = cases.filter(c=>c.tipo!=='credito');
+  const creditoCases = cases.filter(c=>c.tipo==='credito');
+  const sorted = sortCases(filterCases(passivoCases));
+  const filteredCreditoCases = filterCases(creditoCases);
+
+  // passivo real = ativo/andamento/suspenso, excluindo processos vinculados (cartas precatórias da mesma dívida)
+  const passivoReal = passivoCases.filter(c=>['ativo','andamento','suspenso'].includes(c.status) && !c.vinculoId)
+                            .reduce((s,c)=>s+c.valor,0);
+  const excluidoVinculo = passivoCases.filter(c=>c.vinculoId).reduce((s,c)=>s+c.valor,0);
+  const totalCredito = creditoCases.reduce((s,c)=>s+c.valor,0);
+  document.getElementById('heroTotal').textContent = fmtBRL(passivoReal);
+
+  // cards
+  const totalGeral = passivoCases.filter(c=>!c.vinculoId).reduce((s,c)=>s+c.valor,0);
+  const nAtivos = passivoCases.filter(c=>(c.status==='ativo'||c.status==='andamento') && !c.vinculoId).length;
+  const pctArquivado = passivoCases.length? Math.round(passivoCases.filter(c=>c.status==='arquivado'||c.status==='extinto').length/passivoCases.length*100):0;
+  const pctExtinto = passivoCases.length? Math.round(passivoCases.filter(c=>c.status==='extinto').length/passivoCases.length*100):0;
+  const elegiveis = sorted.filter(c=>['ativo','andamento','suspenso'].includes(c.status) && !c.vinculoId);
+  const maiorRisco = elegiveis[0];
+  const menorRisco = [...elegiveis].reverse()[0];
+
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="k">Processos ativos (líquido)</div><div class="v">${nAtivos}</div></div>
+    <div class="card"><div class="k">Passivo trabalhista real</div><div class="v small">${fmtBRL(passivoReal)}</div></div>
+    <div class="card"><div class="k">Créditos a receber</div><div class="v small">${fmtBRL(totalCredito)}</div></div>
+    <div class="card"><div class="k">Excluído por vínculo (CP)</div><div class="v small">${fmtBRL(excluidoVinculo)}</div></div>
+    <div class="card"><div class="k">% Encerrado (arquiv./extinto)</div><div class="v">${pctArquivado}%</div></div>
+    <div class="card"><div class="k">Maior risco</div><div class="v small">${maiorRisco? maiorRisco.nome+' — '+fmtBRL(maiorRisco.valor) : '—'}</div></div>
+    <div class="card"><div class="k">Menor risco</div><div class="v small">${menorRisco? menorRisco.nome+' — '+fmtBRL(menorRisco.valor) : '—'}</div></div>
+  `;
+
+  // ledger
+  let rows = `<div class="row head">
+    <div class="cell">#</div><div class="cell">Parte / Processo</div><div class="cell">Valor</div>
+    <div class="cell">Status</div><div class="cell">Risco</div><div class="cell hide-mobile">Prioridade</div><div class="cell"></div>
+  </div>`;
+  sorted.forEach((c,i)=>{
+    const meta = STATUS_META[c.status];
+    const rk = riskKey(c.risco);
+    const linked = c.vinculoId ? cases.find(x=>x.id===c.vinculoId) : null;
+    rows += `<div class="row ${c.vinculoId?'vinculado':''}">
+      <div class="tab" style="background:${meta.color}"></div>
+      <div class="idx">${i+1}</div>
+      <div class="cell name">${c.nome}${c.proc? `<span class="proc-num">Proc. ${c.proc}</span>`:''}${c.vinculoId?`<span class="link-tag">🔗 vinculado a ${linked?linked.nome:c.vinculoId} — excluído do passivo</span>`:''}</div>
+      <div class="cell val">${fmtBRL(c.valor)}</div>
+      <div class="cell"><span class="badge"><span class="dot" style="background:${meta.color}"></span>${meta.label}</span></div>
+      <div class="cell">${c.risco?`<span class="risk-badge risk-${rk}">${c.risco}</span>`:'—'}</div>
+      <div class="cell hide-mobile prio">${c.prio||'—'}</div>
+      <div class="cell actions">
+        <button onclick="editCase('${c.id}')">editar</button>
+        <button onclick="deleteCase('${c.id}')">remover</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('ledger').innerHTML = rows;
+
+  // créditos a receber (processos em que Sergio é autor, não réu)
+  if(filteredCreditoCases.length){
+    let crows = `<div class="row head">
+      <div class="cell">#</div><div class="cell">Ação / Processo</div><div class="cell">Valor</div>
+      <div class="cell">Status</div><div class="cell hide-mobile">Fase</div><div class="cell"></div>
+    </div>`;
+    filteredCreditoCases.forEach((c,i)=>{
+      const meta = STATUS_META[c.status];
+      crows += `<div class="row">
+        <div class="tab" style="background:${meta.color}"></div>
+        <div class="idx">${i+1}</div>
+        <div class="cell name">${c.nome}${c.proc? `<span class="proc-num">Proc. ${c.proc}</span>`:''}</div>
+        <div class="cell val">${fmtBRL(c.valor)}</div>
+        <div class="cell"><span class="badge"><span class="dot" style="background:${meta.color}"></span>${meta.label}</span></div>
+        <div class="cell hide-mobile prio">${c.fase||'—'}</div>
+        <div class="cell actions">
+          <button onclick="editCase('${c.id}')">editar</button>
+          <button onclick="deleteCase('${c.id}')">remover</button>
+        </div>
+      </div>`;
+    });
+    document.getElementById('creditos').innerHTML = crows;
+  } else {
+    document.getElementById('creditos').innerHTML = '<div class="tl-empty">Nenhum crédito cadastrado.</div>';
+  }
+
+  // timeline select
+  const tlSel = document.getElementById('tl-case');
+  tlSel.innerHTML = cases.map(c=>`<option value="${c.id}">${c.nome}${c.proc?' ('+c.proc+')':''}</option>`).join('');
+  const tlDate = document.getElementById('tl-date');
+  if(!tlDate.value) tlDate.value = new Date().toISOString().slice(0,10);
+
+  // timeline list (all events, newest first)
+  let allEvents = [];
+  Object.keys(events).forEach(cid=>{
+    const c = cases.find(x=>x.id===cid);
+    (events[cid]||[]).forEach(ev=> allEvents.push({...ev, who:c?c.nome:cid, cid}));
+  });
+  allEvents.sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('timeline').innerHTML = allEvents.length ? allEvents.map(ev=>`
+    <div class="tl-item">
+      <div class="tl-date">${new Date(ev.date+'T00:00:00').toLocaleDateString('pt-BR')}</div>
+      <div class="tl-desc"><div class="who">${ev.who}</div><div class="what">${ev.what}</div></div>
+      <button onclick="removeEvent('${ev.cid}','${ev.evId}')">remover</button>
+    </div>`).join('') : '<div class="tl-empty">Nenhuma movimentação registrada ainda.</div>';
+
+  const dlSel = document.getElementById('dl-case');
+  dlSel.innerHTML = cases.map(c=>`<option value="${c.id}">${c.nome}${c.proc?' ('+c.proc+')':''}</option>`).join('');
+  const dlDate = document.getElementById('dl-date');
+  if(!dlDate.value) dlDate.value = new Date().toISOString().slice(0,10);
+  renderDeadlines();
+
+  // fichas
+  document.getElementById('fichas').innerHTML = sorted.map(c=>{
+    const meta = STATUS_META[c.status];
+    const hist = (events[c.id]||[]).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const linked = c.vinculoId ? cases.find(x=>x.id===c.vinculoId) : null;
+    return `<div class="ficha">
+      <h3>${c.nome}</h3>
+      <div class="risk-strip">
+        <span class="risk-pill">${meta.label}</span>
+        ${c.prio?`<span class="risk-pill">Prioridade ${c.prio}</span>`:''}
+        ${c.risco?`<span class="risk-pill">Risco ${c.risco}</span>`:''}
+        ${c.penhora?`<span class="risk-pill">Penhora</span>`:''}
+        ${c.cartaPrecatoria?`<span class="risk-pill">Carta Precatória</span>`:''}
+      </div>
+      <div class="row-line"><span>Processo</span><span>${c.proc||'—'}</span></div>
+      <div class="row-line"><span>Empresa executada</span><span>${c.empresaExecutada||'—'}</span></div>
+      <div class="row-line"><span>Valor</span><span>${fmtBRL(c.valor)}</span></div>
+      <div class="row-line"><span>Fase</span><span>${c.fase||'—'}</span></div>
+      <div class="row-line"><span>Vara/Tribunal</span><span>${c.vara||'—'}</span></div>
+      <div class="row-line"><span>Prob. bloqueio</span><span>${c.probBloqueio||'—'}</span></div>
+      <div class="row-line"><span>Vínculo</span><span>${linked? 'Execução de '+linked.nome : (c.vinculoId||'—')}</span></div>
+      <div class="row-line"><span>Últ. movimentação</span><span>${hist.length? new Date(hist[hist.length-1].date+'T00:00:00').toLocaleDateString('pt-BR') : '—'}</span></div>
+      ${c.obs?`<div class="obs">${c.obs}</div>`:''}
+      <div class="ficha-actions"><button onclick="editCase('${c.id}')">Editar processo</button></div>
+    </div>`;
+  }).join('');
+
+  refreshVinculoOptions(document.getElementById('f-id').value || null);
+  renderCharts(sorted);
+}
+
+function renderDeadlines(){
+  const labels = {limite:'Data limite', audiencia:'Audiência', contestacao:'Contestação', outro:'Outro'};
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const list = [...deadlines].sort((a,b)=>new Date(a.date+'T00:00:00')-new Date(b.date+'T00:00:00'));
+  document.getElementById('deadlines').innerHTML = list.length ? list.map(d=>{
+    const process = cases.find(c=>c.id===d.processId);
+    const due = new Date(d.date+'T00:00:00');
+    const days = Math.ceil((due-today)/86400000);
+    let stateClass = 'deadline-ok';
+    let state = days===0 ? 'Hoje' : (days===1 ? 'Amanhã' : `Em ${days} dias`);
+    if(d.completed){ stateClass='deadline-done'; state='Concluído'; }
+    else if(days<0){ stateClass='deadline-overdue'; state=`Vencido há ${Math.abs(days)} dias`; }
+    else if(days<=7){ stateClass='deadline-soon'; }
+    return `<div class="deadline-item">
+      <div class="deadline-date">${due.toLocaleDateString('pt-BR')}</div>
+      <div class="deadline-desc"><div class="who">${process?process.nome:'Processo removido'}</div><div class="what">${d.description}</div></div>
+      <div class="deadline-kind">${labels[d.kind]||'Outro'}</div>
+      <span class="deadline-state ${stateClass}">${state}</span>
+      <div class="deadline-actions">
+        <button onclick="toggleDeadline('${d.id}')">${d.completed?'reabrir':'concluir'}</button>
+        <button onclick="removeDeadline('${d.id}')">remover</button>
+      </div>
+    </div>`;
+  }).join('') : '<div class="tl-empty">Nenhum prazo cadastrado ainda.</div>';
+}
+
+function renderCharts(sorted){
+  const statusCounts = {};
+  Object.keys(STATUS_META).forEach(k=> statusCounts[k]=0);
+  cases.filter(c=>c.tipo!=='credito').forEach(c=> statusCounts[c.status]++);
+
+  const pieCtx = document.getElementById('pieChart');
+  if(pieChart) pieChart.destroy();
+  pieChart = new Chart(pieCtx, {
+    type:'doughnut',
+    data:{
+      labels: Object.keys(statusCounts).map(k=>STATUS_META[k].label),
+      datasets:[{
+        data: Object.values(statusCounts),
+        backgroundColor: Object.keys(statusCounts).map(k=>getComputedStyle(document.documentElement).getPropertyValue('--'+ {ativo:'ativo',andamento:'andamento',suspenso:'suspenso',arquivado:'arquivado',extinto:'extinto'}[k])),
+        borderColor:getComputedStyle(document.documentElement).getPropertyValue('--panel'),borderWidth:2,
+      }]
+    },
+    options:{plugins:{legend:{labels:{color:'#6F6A61',font:{family:'ui-monospace',size:11}}}}}
+  });
+
+  const barCtx = document.getElementById('barChart');
+  if(barChart) barChart.destroy();
+  barChart = new Chart(barCtx, {
+    type:'bar',
+    data:{
+      labels: sorted.map(c=>c.nome.length>12? c.nome.slice(0,12)+'…':c.nome),
+      datasets:[{
+        data: sorted.map(c=>c.valor),
+        backgroundColor: sorted.map(c=>getComputedStyle(document.documentElement).getPropertyValue('--'+c.status)),
+      }]
+    },
+    options:{
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6F6A61',font:{size:10}},grid:{color:'rgba(149,99,22,0.10)'}},
+        y:{ticks:{color:'#6F6A61',callback:v=>'R$ '+(v/1000)+'k'},grid:{color:'rgba(149,99,22,0.10)'}}
+      }
+    }
+  });
+}
+
+function refreshVinculoOptions(excludeId){
+  const sel = document.getElementById('f-vinculo');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Sem vínculo (processo independente)</option>' +
+    cases.filter(c=>c.id!==excludeId).map(c=>`<option value="${c.id}">${c.nome}${c.proc?' ('+c.proc+')':''}</option>`).join('');
+  sel.value = current;
+}
+
+function resetForm(){
+  ['f-nome','f-proc','f-valor','f-fase','f-vara','f-obs','f-id','f-empresa'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-status').value='ativo';
+  document.getElementById('f-prio').value='';
+  document.getElementById('f-risco').value='';
+  document.getElementById('f-bloqueio').value='';
+  document.getElementById('f-penhora').checked=false;
+  document.getElementById('f-cp').checked=false;
+  document.getElementById('f-tipo').value='passivo';
+  refreshVinculoOptions(null);
+  document.getElementById('f-vinculo').value='';
+}
+
+async function saveCase(){
+  const id = document.getElementById('f-id').value || ('c'+crypto.randomUUID());
+  const nome = document.getElementById('f-nome').value.trim();
+  if(!nome){ alert('Informe o nome/parte do processo.'); return; }
+  const valor = parseBRL(document.getElementById('f-valor').value);
+  if(valor < 0){ alert('O valor não pode ser negativo.'); return; }
+  const entry = {
+    id, nome,
+    proc: document.getElementById('f-proc').value.trim(),
+    valor,
+    status: document.getElementById('f-status').value,
+    fase: document.getElementById('f-fase').value.trim(),
+    vara: document.getElementById('f-vara').value.trim(),
+    prio: document.getElementById('f-prio').value,
+    obs: document.getElementById('f-obs').value.trim(),
+    empresaExecutada: document.getElementById('f-empresa').value.trim(),
+    risco: document.getElementById('f-risco').value,
+    probBloqueio: document.getElementById('f-bloqueio').value,
+    penhora: document.getElementById('f-penhora').checked,
+    cartaPrecatoria: document.getElementById('f-cp').checked,
+    vinculoId: document.getElementById('f-vinculo').value,
+    tipo: document.getElementById('f-tipo').value,
+  };
+  const idx = cases.findIndex(c=>c.id===id);
+  if(idx>=0) cases[idx] = entry; else cases.push(entry);
+  await persist();
+  resetForm();
+  render();
+}
+
+function editCase(id){
+  const c = cases.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('f-id').value = c.id;
+  document.getElementById('f-nome').value = c.nome;
+  document.getElementById('f-proc').value = c.proc;
+  document.getElementById('f-valor').value = c.valor;
+  document.getElementById('f-status').value = c.status;
+  document.getElementById('f-fase').value = c.fase;
+  document.getElementById('f-vara').value = c.vara;
+  document.getElementById('f-prio').value = c.prio;
+  document.getElementById('f-obs').value = c.obs;
+  document.getElementById('f-empresa').value = c.empresaExecutada||'';
+  document.getElementById('f-risco').value = c.risco||'';
+  document.getElementById('f-bloqueio').value = c.probBloqueio||'';
+  document.getElementById('f-penhora').checked = !!c.penhora;
+  document.getElementById('f-cp').checked = !!c.cartaPrecatoria;
+  refreshVinculoOptions(c.id);
+  document.getElementById('f-vinculo').value = c.vinculoId||'';
+  document.getElementById('f-tipo').value = c.tipo||'passivo';
+  window.scrollTo({top:document.getElementById('f-nome').offsetTop-100,behavior:'smooth'});
+}
+
+async function deleteCase(id){
+  if(!confirm('Remover este processo do controle?')) return;
+  cases = cases.filter(c=>c.id!==id);
+  delete events[id];
+  await persist();
+  render();
+}
+
+async function addEvent(){
+  const cid = document.getElementById('tl-case').value;
+  const date = document.getElementById('tl-date').value;
+  const what = document.getElementById('tl-what').value.trim();
+  if(!cid || !date || !what){ alert('Preencha processo, data e descrição.'); return; }
+  if(!events[cid]) events[cid]=[];
+  events[cid].push({evId:'e'+crypto.randomUUID(), date, what});
+  await persist();
+  document.getElementById('tl-what').value='';
+  render();
+}
+
+async function addDeadline(){
+  const processId = document.getElementById('dl-case').value;
+  const date = document.getElementById('dl-date').value;
+  const kind = document.getElementById('dl-type').value;
+  const description = document.getElementById('dl-desc').value.trim();
+  if(!processId || !date || !description){ alert('Preencha processo, data e descrição do prazo.'); return; }
+  deadlines.push({id:'d'+crypto.randomUUID(), processId, date, kind, description, completed:false});
+  await persist();
+  document.getElementById('dl-desc').value='';
+  render();
+}
+
+async function toggleDeadline(id){
+  const deadline = deadlines.find(d=>String(d.id)===String(id));
+  if(!deadline) return;
+  deadline.completed = !deadline.completed;
+  await persist();
+  render();
+}
+
+async function removeDeadline(id){
+  if(!confirm('Remover este prazo?')) return;
+  deadlines = deadlines.filter(d=>String(d.id)!==String(id));
+  await persist();
+  render();
+}
+
+async function removeEvent(cid, evId){
+  events[cid] = (events[cid]||[]).filter(e=>e.evId!==evId);
+  await persist();
+  render();
+}
+
+initAuth();
+</script>
+</body>
+</html>

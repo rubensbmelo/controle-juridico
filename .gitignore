@@ -1,0 +1,6 @@
+# Nunca versionar backups ou exportacoes com dados reais.
+*.backup
+*.bak
+*.json
+*.csv
+supabase-config.local.js
